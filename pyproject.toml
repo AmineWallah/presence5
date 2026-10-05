@@ -3,5 +3,10 @@ name = "rps5"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "pyside6>=6.11.2",
+    "pyside6-essentials>=6.11.2",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.22.3",
 ]

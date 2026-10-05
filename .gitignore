@@ -2,3 +2,6 @@
 __pycache__/
 .idea/
 *.elf
+client/build/
+client/dist/
+*.spec
