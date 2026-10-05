@@ -8,6 +8,8 @@ import ipaddress
 
 log = logging.getLogger(__name__)
 
+PAYLOAD_PORT = 8000
+
 
 class PresenceClient:
     def __init__(self, host: str, port: int, discord_path: str):
@@ -19,6 +21,17 @@ class PresenceClient:
         self.synced = False
         self.discord_down = False
         self.title_cache = {}
+        self.title_id: str | None = None
+        self.title: TitleInfo | None = None
+        self.started_at: int | None = None  # Unix time the game started
+
+    @property
+    def console_reachable(self) -> bool:
+        return self.previous_id != "unreachable"
+
+    @property
+    def discord_connected(self) -> bool:
+        return self.ipc.sock is not None
 
     def resolve_title(self, title_id: str) -> TitleInfo | None:
         if title_id in self.title_cache:
@@ -62,10 +75,14 @@ class PresenceClient:
                              info.name if info else state.title_id, state.title_id, state.elapsed)
                     self.desired = build_activity(state, info)
                     self.synced = False
+                    self.title_id = state.title_id
+                    self.title = info
+                    self.started_at = self.desired["timestamps"]["start"]
                 else:
                     log.info("console idle, clearing presence")
                     self.desired = None
                     self.synced = False
+                    self._clear_game()
                 self.previous_id = current_id
 
         except ConsoleUnreachable:
@@ -73,6 +90,7 @@ class PresenceClient:
                 log.warning("console unreachable at %s:%s, clearing presence", self.host, self.port)
                 self.desired = None
                 self.synced = False
+                self._clear_game()
             self.previous_id = "unreachable"
 
         # 2. Did Discord go away while nothing else changed?
@@ -96,6 +114,11 @@ class PresenceClient:
                     log.warning("Discord is not reachable at %s. Is it running? Will keep retrying.",
                                 self.ipc.path)
                 self.discord_down = True
+
+    def _clear_game(self) -> None:
+        self.title_id = None
+        self.title = None
+        self.started_at = None
 
     def close(self) -> None:
         self.ipc.close()
@@ -136,7 +159,6 @@ def positive_seconds(value: str) -> float:
 
 
 def main():
-    PAYLOAD_PORT = 8000
     parser = argparse.ArgumentParser(
         prog='presence5',
         description='A Discord Rich Presence client for PlayStation 5 game activity display'
