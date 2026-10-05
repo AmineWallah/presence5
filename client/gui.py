@@ -24,6 +24,7 @@ GREEN, RED, GREY = "#3ba55d", "#ed4245", "#8e9297"
 
 @dataclass
 class Snapshot:
+    """What the window needs to know after each poll."""
     console_reachable: bool
     discord_connected: bool
     title_id: str | None
@@ -33,11 +34,12 @@ class Snapshot:
 
 
 class Worker(QThread):
+    """Runs the presence client off the UI thread."""
 
     updated = Signal(object)        # a Snapshot, after every poll
     cover_loaded = Signal(str, bytes)  # image URL, image bytes (empty if it failed)
 
-    def __init__(self, host: str, discord_path: str, interval: int):
+    def __init__(self, host: str, discord_path: str | None, interval: int):
         super().__init__()
         self.host = host
         self.discord_path = discord_path
@@ -76,6 +78,7 @@ class Worker(QThread):
 
 
 def download(url: str) -> bytes:
+    """Fetch an image. Returns empty bytes on any failure."""
     try:
         with urllib.request.urlopen(url, timeout=5) as response:
             return response.read()
@@ -85,6 +88,7 @@ def download(url: str) -> bytes:
 
 
 def make_icon() -> QIcon:
+    """Draw the app icon in code, so there is no image file to ship."""
     pixmap = QPixmap(64, 64)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
@@ -126,8 +130,8 @@ class MainWindow(QWidget):
         self.ip_input.returnPressed.connect(self.on_button_clicked)
 
         self.discord_input = QLineEdit(self.settings.value("discord_path", "", str))
-        self.discord_input.setPlaceholderText(default_discord_path())
-        self.discord_input.setToolTip("Leave empty to use the default location.")
+        self.discord_input.setPlaceholderText(f"Automatic ({default_discord_path()})")
+        self.discord_input.setToolTip("Leave empty to find Discord automatically.")
 
         self.interval_input = QSpinBox()
         self.interval_input.setRange(1, 60)
@@ -136,7 +140,7 @@ class MainWindow(QWidget):
 
         form = QFormLayout()
         form.addRow("PS5 IP address", self.ip_input)
-        form.addRow("Discord socket", self.discord_input)
+        form.addRow("Discord path", self.discord_input)
         form.addRow("Refresh every", self.interval_input)
 
         self.error_label = QLabel()
@@ -189,7 +193,7 @@ class MainWindow(QWidget):
         divider.setFrameShape(QFrame.Shape.HLine)
         divider.setFrameShadow(QFrame.Shadow.Sunken)
 
-        # --- The whole thing --------------------------------------------
+        # --- Put it together --------------------------------------------
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(10)
@@ -281,7 +285,7 @@ class MainWindow(QWidget):
             self.ip_input.setFocus()
             return
 
-        discord_path = self.discord_input.text().strip() or default_discord_path()
+        discord_path = self.discord_input.text().strip() or None  # None = auto-detect
         interval = self.interval_input.value()
 
         self.settings.setValue("ps5_ip", host)

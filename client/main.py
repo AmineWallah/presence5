@@ -8,11 +8,11 @@ import ipaddress
 
 log = logging.getLogger(__name__)
 
-PAYLOAD_PORT = 8000
+PAYLOAD_PORT = 8000  # Fixed in the PS5 payload
 
 
 class PresenceClient:
-    def __init__(self, host: str, port: int, discord_path: str):
+    def __init__(self, host: str, port: int, discord_path: str | None = None):
         self.host = host
         self.port = port
         self.ipc = DiscordIPC(APP_ID, discord_path)
@@ -21,6 +21,7 @@ class PresenceClient:
         self.synced = False
         self.discord_down = False
         self.title_cache = {}
+
         self.title_id: str | None = None
         self.title: TitleInfo | None = None
         self.started_at: int | None = None  # Unix time the game started
@@ -31,7 +32,7 @@ class PresenceClient:
 
     @property
     def discord_connected(self) -> bool:
-        return self.ipc.sock is not None
+        return self.ipc.connected
 
     def resolve_title(self, title_id: str) -> TitleInfo | None:
         if title_id in self.title_cache:
@@ -102,17 +103,17 @@ class PresenceClient:
         # 3. Bring Discord in line with what should be showing.
         if not self.synced:
             try:
-                if self.ipc.sock is None:
+                if not self.ipc.connected:
                     self.ipc.connect()
-                    log.info("connected to Discord")
+                    log.info("connected to Discord at %s", self.ipc.path)
                 self.ipc.set_activity(self.desired)
                 self.synced = True
                 self.discord_down = False
                 log.debug("presence %s", "updated" if self.desired else "cleared")
             except DiscordUnavailable:
                 if not self.discord_down:
-                    log.warning("Discord is not reachable at %s. Is it running? Will keep retrying.",
-                                self.ipc.path)
+                    log.warning("Discord is not reachable (%s). Is it running? Will keep retrying.",
+                                self.ipc.requested_path or "looked in the usual places")
                 self.discord_down = True
 
     def _clear_game(self) -> None:
@@ -165,8 +166,9 @@ def main():
     )
 
     parser.add_argument('ps5_ip', type=valid_ipv4, help="Target PS5 IP Address (e.g, 192.168.1.1)")
-    parser.add_argument('--discord', '-d', default=default_discord_path(),
-                        help="Path to Discord's IPC socket (default: %(default)s)")
+    parser.add_argument('--discord', '-d', default=None, metavar='PATH',
+                        help="Path to Discord's IPC socket or pipe, if auto-detection fails "
+                             f"(usually {default_discord_path()})".replace('%', '%%'))
     parser.add_argument('--interval', '-i', type=positive_seconds, default=5,
                         help="Activity refresh interval in seconds (default: %(default)s)")
     parser.add_argument('--verbose', '-v', action='store_true', help="Enable verbose logging")
