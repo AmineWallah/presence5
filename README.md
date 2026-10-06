@@ -71,8 +71,11 @@ icon to bring the window back, or right-click it and choose **Quit** to exit.
 
 ```sh
 # Linux
-chmod +x presence5-cli-linux
-./presence5-cli-linux <PS5_IP>
+chmod +x presence5-linux-cli
+./presence5-linux-cli <PS5_IP>
+
+# Windows
+presence5-cli.exe <PS5_IP>
 ```
 
 | Option | Description |
