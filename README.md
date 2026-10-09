@@ -1,6 +1,6 @@
 # Presence5
 
-A PS5 payload that works alongside a desktop client to display your game activity on Discord
+A PlayStation5 payload that works alongside a desktop client to display your game activity on Discord
 through its Rich Presence feature.
 
 | Client preview | Discord preview |
